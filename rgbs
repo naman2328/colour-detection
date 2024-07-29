@@ -1,0 +1,93 @@
+import cv2
+import numpy as np
+
+def simulate_color_detection(cap):
+    while True:
+        ret, im = cap.read()  # Read frames from the webcam
+
+        if not ret:
+            print("Failed to grab frame")
+            break
+
+        hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)  # Convert frames from BGR to HSV
+
+        # Define refined color ranges in HSV format
+        # Red ranges
+        low_red1 = np.array([10, 50, 50])
+        high_red1 = np.array([10, 255, 255])
+        low_red2 = np.array([170, 50, 50])
+        high_red2 = np.array([180, 255, 255])
+        mask_red1 = cv2.inRange(hsv, low_red1, high_red1)
+        mask_red2 = cv2.inRange(hsv, low_red2, high_red2)
+        mask_red = cv2.bitwise_or(mask_red1, mask_red2)
+
+        # Green range
+        low_green = np.array([40, 50, 50])
+        high_green = np.array([80, 255, 255])
+        mask_green = cv2.inRange(hsv, low_green, high_green)
+
+        # Blue range
+        low_blue = np.array([100, 50, 50])
+        high_blue = np.array([130, 255, 255])
+        mask_blue = cv2.inRange(hsv, low_blue, high_blue)
+
+        # Skin range
+        low_skin = np.array([0, 30, 60])
+        high_skin = np.array([20, 150, 255])
+        mask_skin = cv2.inRange(hsv, low_skin, high_skin)
+
+        # Additional processing to reduce false positives
+        mask_green = cv2.bitwise_and(mask_green, cv2.bitwise_not(mask_blue))
+        mask_green = cv2.bitwise_and(mask_green, cv2.bitwise_not(mask_skin))
+
+        # Visualize masks
+        cv2.imshow('Red Mask', mask_red)
+        cv2.imshow('Green Mask', mask_green)
+        cv2.imshow('Blue Mask', mask_blue)
+        cv2.imshow('Skin Mask', mask_skin)
+
+        # Find contours
+        contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours_green, _ = cv2.findContours(mask_green, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours_skin, _ = cv2.findContours(mask_skin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Draw contours and identify colors
+        for contour in contours_red:
+            if cv2.contourArea(contour) > 500:  # Filter small contours
+                x, y, w, h = cv2.boundingRect(contour)
+                cv2.rectangle(im, (x, y), (x+w, y+h), (0, 0, 255), 2)
+                cv2.putText(im, 'Red', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+
+        for contour in contours_green:
+            if cv2.contourArea(contour) > 500:  # Filter small contours
+                x, y, w, h = cv2.boundingRect(contour)
+                cv2.rectangle(im, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                cv2.putText(im, 'Green', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+        for contour in contours_blue:
+            if cv2.contourArea(contour) > 500:  # Filter small contours
+                x, y, w, h = cv2.boundingRect(contour)
+                cv2.rectangle(im, (x, y), (x+w, y+h), (255, 0, 0), 2)
+                cv2.putText(im, 'Blue', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
+
+        for contour in contours_skin:
+            if cv2.contourArea(contour) > 500:  # Filter small contours
+                x, y, w, h = cv2.boundingRect(contour)
+                cv2.rectangle(im, (x, y), (x+w, y+h), (0, 255, 255), 2)
+                cv2.putText(im, 'Skin', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 255), 2)
+
+        cv2.imshow('Frame', im)  # Show the frame
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # Exit on 'q' key
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Error: Could not open video source.")
+    else:
+        simulate_color_detection(cap)
